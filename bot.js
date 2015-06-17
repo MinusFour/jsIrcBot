@@ -16,10 +16,13 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /*******************************************************************************/
- * var net = require('net');
+var net = require('net');
 var joinedChannels = [ ];
 var promise = require('./promise');
 var client = { };
+var outputCounter = 0;
+var queueInterval;
+var outputQueue = [ ];
 var eventListeners = { };
 var connection;
 var userList = [ ];
@@ -210,7 +213,7 @@ function matchCommand(user, access, msg, medium){
 			if(result){
 				result.push(user);
 				result.push(medium);
-				command.fn.apply(this, result.splice(1));
+				command.fn.apply(this, result.slice(1));
 			}
 		}, this);
 	}, this);
@@ -266,8 +269,43 @@ function addAuthCheck(fn){
 }
 
 function sendMessage(connection, msg){
-	console.log(msg);
-	connection.write(msg + '\r\n');
+	if(outputCounter == 3){
+		queueUp(msg);
+	} else {
+		outputCounter++;
+		trueSendMessage(connection, msg);
+	}
+}
+
+function trueSendMessage(connection, msg){
+		console.log(msg);
+		connection.write(msg + '\r\n');
+}
+
+function queueUp(msg){
+	outputQueue.push(msg);
+	if(!queueIsStarted()){
+		startQueue();
+	}
+}
+
+function queueIsStarted(){
+	if(queueInterval){
+		return true;
+	} else {
+		return false;
+	}
+}
+
+function startQueue(){
+	queueInterval = setInterval(function(){
+		if(outputQueue.length){
+			var msg = outputQueue.splice(0,1);
+			trueSendMessage(msg);
+		} else{
+			clearInterval(queueInterval);
+		};
+	}, 1000);
 }
 
 function trigger(event, params){
@@ -300,6 +338,9 @@ client.start = function(options){
 		this.setOptions(options);
 	}
 	connection = net.connect(client.port, client.host);
+	this.outputWatcher = setInterval(function(){
+		outputCounter = 0;
+	}, 1000);
 	connection.setEncoding('utf8');
 	connection.on('connect', initialHandshake);
 	connection.on('data', dataLoop);
