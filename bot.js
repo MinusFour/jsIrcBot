@@ -17,14 +17,12 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /*******************************************************************************/
 var net = require('net');
-var joinedChannels = [ ];
 var promise = require('./promise');
+var queue = require('./queue');
 var client = { };
-var outputCounter = 0;
-var queueInterval;
-var outputQueue = [ ];
 var eventListeners = { };
 var connection;
+var joinedChannels = [ ];
 var userList = [ ];
 var accessList = [ ];
 var waitingList = [ ];
@@ -269,43 +267,14 @@ function addAuthCheck(fn){
 }
 
 function sendMessage(connection, msg){
-	if(outputCounter == 3){
-		queueUp(msg);
-	} else {
-		outputCounter++;
-		trueSendMessage(connection, msg);
-	}
+	console.log(msg);
+	queue.write(msg + '\r\n');
 }
 
-function trueSendMessage(connection, msg){
-		console.log(msg);
-		connection.write(msg + '\r\n');
-}
-
-function queueUp(msg){
-	outputQueue.push(msg);
-	if(!queueIsStarted()){
-		startQueue();
-	}
-}
-
-function queueIsStarted(){
-	if(queueInterval){
-		return true;
-	} else {
-		return false;
-	}
-}
-
-function startQueue(){
-	queueInterval = setInterval(function(){
-		if(outputQueue.length){
-			var msg = outputQueue.splice(0,1);
-			trueSendMessage(msg);
-		} else{
-			clearInterval(queueInterval);
-		};
-	}, 1000);
+function sendQueueMessage(connection, msg){
+	//Signature needs to be fixed
+	console.log(msg);
+	queue.write(msg + '\r\n');
 }
 
 function trigger(event, params){
@@ -322,11 +291,11 @@ function addCommand(command, access){
 }
 
 function sendMessageToUser(user, msg){
-	sendMessage(connection, 'PRIVMSG ' + user + ' :' + msg);
+	sendQueueMessage(connection, 'PRIVMSG ' + user + ' :' + msg);
 }
 
 function sendNoticeTo(medium, msg){
-	sendMessage(connection, 'NOTICE ' + medium + ' :' + msg);
+	sendQueueMessage(connection, 'NOTICE ' + medium + ' :' + msg);
 }
 
 function sendKick(user, channel, message){
@@ -338,9 +307,7 @@ client.start = function(options){
 		this.setOptions(options);
 	}
 	connection = net.connect(client.port, client.host);
-	this.outputWatcher = setInterval(function(){
-		outputCounter = 0;
-	}, 1000);
+	queue.setConn(connection);
 	connection.setEncoding('utf8');
 	connection.on('connect', initialHandshake);
 	connection.on('data', dataLoop);
