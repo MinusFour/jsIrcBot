@@ -1,49 +1,56 @@
-var queue = { };
-var msgList = [ ];
-var counter;
-var queueInterval;
-var connection;
-var watcher = setInterval(function(){
-	counter = 0;
-}, 1000);
+var queue = {
+	_msgList : [ ],
+	_counter : 0
+};
 
-function addToQueue(msg){
-	msgList.push(msg);
-	if(!queueInterval){
-		intervalInit();
+queue._startWatcher = function(){
+	this._watcher = setInterval((function(self){
+		return function(){
+			self._counter = 0;
+		}
+	})(this), 1000);
+}
+
+queue._addToQueue = function(msg){
+	this._msgList.push(msg);
+	if(!this._queueInterval){
+		this._intervalInit();
 	}
 }
 
-function intervalInit(){
-	queueInterval = setInterval(function(){
-		if(msgList.length > 0){
-			sendMessage(msgList.shift());
-		} else {
-			clearInterval(queueInterval);
-			queueInterval = null;
+queue._intervalInit = function(){
+	this._queueInterval = setInterval((function(self){
+		return function(){
+			if(self._msgList.length > 0){
+				self._sendMessage(self._msgList.shift());
+			} else {
+				clearInterval(self._queueInterval);
+				self._queueInterval = null;
+			}
 		}
-	}, 1000);
+	})(this), 1000);
 }
 
-function sendMessage(msg){
-	connection.write(msg);
+queue._sendMessage = function(msg){
+	this._connection.write(msg);
 }
 
 queue.stopWatcher = function(){
-	clearInterval(watcher);
+	clearInterval(this._watcher);
 }
 
 queue.write = function(msg){
-	if(counter > 3 || queueInterval){
-		addToQueue(msg);
+	if(this._counter > 3 || this._queueInterval){
+		this._addToQueue(msg);
 	} else {
-		sendMessage(msg);
-		counter++;
+		this._sendMessage(msg);
+		this._counter++;
 	}
 }
 
 queue.setConn = function(conn){
-	connection = conn;
+	this._connection = conn;
+	this._startWatcher();
 }
 
 module.exports = queue;
