@@ -40,7 +40,7 @@ promise.then = function (cb) {
     this.cb = cb;
 	this.prom = Object.create(promise);
 	if(this.status == 'resolved'){
-		this.prom.make(this.user, this.cb);
+		this.prom.make(this.user, this.cb, this.fb);
 	}
 	return this.prom;
 };

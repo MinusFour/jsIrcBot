@@ -19,13 +19,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 var net = require('net');
 var promise = require('./promise');
 var queue = require('./queue');
+var waiter = require('./mwaiting');
+var styler = require('./styler');
 var client = { };
 var eventListeners = { };
 var connection;
 var joinedChannels = [ ];
 var userList = [ ];
 var accessList = [ ];
-var waitingList = [ ];
 var accessListResolved = [ ];
 var commands = [ ];
 var commandsByName = [ ];
@@ -66,8 +67,8 @@ function dataLoop(data){
 		if(privmsg){
 			var medium = privmsg[1];
 			var msg = privmsg[2];
-			if(isUserWaiting(username)){
-				callWaitingFunction(username, msg);
+			if(waiter.isUserWaiting(username)){
+				waiter.resolveWaitingFunction(username, msg);
 			}
 			if(isCommand(msg)){
 				var access = checkAccess(username);
@@ -110,6 +111,7 @@ function authenticate(user, cb){
 		authenticated[user] = false;
 		cb(true);
 	}, function(){
+		authenticated[user] = undefined;
 		sendNoticeTo(user, 'Auth failed!');
 	});
 	//Chain functions
@@ -132,45 +134,12 @@ function isAuthenticated(user){
 	return authenticated[user] === true;
 }
 
-function callWaitingFunction(user, msg){
-	var toDo = waitingList[user];
-	var toDelete = [ ];
-	toDo.forEach(function(action, index) {
-		if(action.regexp === undefined || (action.regexp && msg.match(action.regexp)) ){
-				action.fn.call(this, msg);
-				toDelete.push(index);
-		}
-	}, this);
-	if(toDelete.length){
-		toDelete.sort(function(a, b){
-			return b - a;
-		}).forEach(function(value){
-			toDo.splice(value, 1);
-		});
-	}
-}
-
-function isUserWaiting(username){
-	if(waitingList[username]){
-		return true;
-	} else {
-		return false;
-	}
-}
-
 function isCommand(msg){
 	if(msg.indexOf(client.cSymbol) == 0){
 		return true;
 	} else {
 		return false;
 	}
-}
-
-function waitForNextMessageFrom(user, cb, test){
-	if(waitingList[user] === undefined){
-		waitingList[user] = [ ];
-	}
-	waitingList[user].push({ regexp : test, fn : cb });
 }
 
 function getFullAccessList(access){
@@ -215,6 +184,10 @@ function matchCommand(user, access, msg, medium){
 			}
 		}, this);
 	}, this);
+}
+
+function waitForNextMessageFrom(user, test, expire){
+	return waiter.addWait(user, test, expire);
 }
 
 function resolveAccess(access){
@@ -330,6 +303,14 @@ client.messageUser = function(user, msg){
 	sendMessageToUser(user, msg);
 }
 
+client.color = function(text, fg, bg){
+	return styler.color(text, fg, bg);
+}
+
+client.format = function(text, format){
+	return styler.format(text, format);
+}
+
 client.sendNoticeOn = function(medium, msg){
 	sendNoticeTo(medium, msg);
 }
@@ -362,8 +343,8 @@ client.quit = function(){
 	sendMessage(connection, 'QUIT :Goodbye!');
 }
 
-client.waitFor = function(user, cb, test){
-	waitForNextMessageFrom(user, cb, test);
+client.waitFor = function(user, test, expire){
+	return waitForNextMessageFrom(user, test, expire);
 }
 
 client.onAuth = function(fn){
