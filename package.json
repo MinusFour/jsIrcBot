@@ -1,0 +1,27 @@
+{
+  "name": "js-bot-irc",
+  "version": "1.0.0",
+  "description": "Simple bot for irc",
+  "main": "bot.js",
+  "dependencies": {
+    "Adehun": "git+https://github.com/abdulapopoola/Adehun.git"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MinusFour/jsIrcBot.git"
+  },
+  "keywords": [
+    "irc",
+    "bot"
+  ],
+  "author": "Alexander Quiroga",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/MinusFour/jsIrcBot/issues"
+  },
+  "homepage": "https://github.com/MinusFour/jsIrcBot#readme"
+}
